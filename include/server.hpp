@@ -10,8 +10,6 @@
 #define BACKLOG 10
 
 void *get_in_addr(sockaddr *sa);
-void sigchild_handler(int);
-
 class ChatServer {
 public:
   ChatServer();

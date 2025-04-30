@@ -1,10 +1,9 @@
 #include <arpa/inet.h>
 #include <format>
 #include <iostream>
-#include <signal.h>
 #include <stdexcept>
 #include <string.h>
-#include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 #include <server.hpp>
@@ -15,13 +14,6 @@ void *get_in_addr(sockaddr *sa) {
   }
 
   return &(((sockaddr_in6 *)sa)->sin6_addr);
-}
-
-void sigchild_handler(int s) {
-  int saved_errno = errno;
-  while (waitpid(-1, nullptr, WNOHANG) > 0)
-    ;
-  errno = saved_errno;
 }
 
 ChatServer::ChatServer() {
@@ -47,7 +39,7 @@ void ChatServer::bindSocket() {
     _sockfd =
         FileDescriptor(socket(p->ai_family, p->ai_socktype, p->ai_protocol));
     if (!_sockfd.isValid()) {
-      std::cout << std::format("Error: {}\n", strerror(errno));
+      std::cerr << std::format("Error: {}\n", strerror(errno));
       continue;
     }
 
@@ -59,7 +51,7 @@ void ChatServer::bindSocket() {
 
     if ((bind(_sockfd, p->ai_addr, p->ai_addrlen)) == -1) {
       _sockfd.reset();
-      std::cout << std::format("Error: {}\n", strerror(errno));
+      std::cerr << std::format("Error: {}\n", strerror(errno));
       continue;
     }
 
@@ -76,20 +68,14 @@ void ChatServer::run() {
     throwError();
   }
 
-  struct sigaction sa;
-  sa.sa_handler = sigchild_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART;
-  if (sigaction(SIGCHLD, &sa, nullptr) == -1) {
-    throwError();
-  }
+  std::cout << "Server is listening on port " << PORT << "...\n";
 
   while (true) {
     socklen_t sin_size = sizeof(_client_addr);
-    FileDescriptor _new_fd(
+    FileDescriptor client_fd(
         accept(_sockfd.get(), (sockaddr *)&_client_addr, &sin_size));
 
-    if (!_new_fd.isValid()) {
+    if (!client_fd.isValid()) {
       std::cout << std::format("Error: {}\n", strerror(errno));
       continue;
     }
@@ -99,14 +85,13 @@ void ChatServer::run() {
               ip, sizeof(ip));
     std::cout << std::format("Accepted connection from {}\n", ip);
 
-    if (!fork()) {
-      _sockfd.reset();
-      if (send(_new_fd.get(), "Hello, world!", 13, 0) == -1) {
-        std::cout << std::format("Error: {}\n", strerror(errno));
+    // Handle client in a new thread
+    std::thread([fd = std::move(client_fd)]() mutable {
+      const char *msg = "Hello, World!";
+      if (send(fd.get(), msg, strlen(msg), 0) == -1) {
+        std::cerr << std::format("Error: {}\n", strerror(errno));
       }
-      _new_fd.reset();
-      _exit(0);
-    }
+    }).detach();
   }
 }
 
