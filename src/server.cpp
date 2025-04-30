@@ -44,8 +44,9 @@ ChatServer::~ChatServer() { freeaddrinfo(_servinfo); }
 void ChatServer::bindSocket() {
   addrinfo *p;
   for (p = _servinfo; p != nullptr; p = p->ai_next) {
-    if ((_sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) ==
-        -1) {
+    _sockfd =
+        FileDescriptor(socket(p->ai_family, p->ai_socktype, p->ai_protocol));
+    if (!_sockfd.isValid()) {
       std::cout << std::format("Error: {}\n", strerror(errno));
       continue;
     }
@@ -57,7 +58,7 @@ void ChatServer::bindSocket() {
     }
 
     if ((bind(_sockfd, p->ai_addr, p->ai_addrlen)) == -1) {
-      close(_sockfd);
+      _sockfd.reset();
       std::cout << std::format("Error: {}\n", strerror(errno));
       continue;
     }
@@ -85,8 +86,10 @@ void ChatServer::run() {
 
   while (true) {
     socklen_t sin_size = sizeof(_client_addr);
-    _new_fd = accept(_sockfd, (sockaddr *)&_client_addr, &sin_size);
-    if (_new_fd == -1) {
+    FileDescriptor _new_fd(
+        accept(_sockfd.get(), (sockaddr *)&_client_addr, &sin_size));
+
+    if (!_new_fd.isValid()) {
       std::cout << std::format("Error: {}\n", strerror(errno));
       continue;
     }
@@ -97,14 +100,13 @@ void ChatServer::run() {
     std::cout << std::format("Accepted connection from {}\n", ip);
 
     if (!fork()) {
-      close(_sockfd);
-      if (send(_new_fd, "Hello, world!", 13, 0) == -1) {
+      _sockfd.reset();
+      if (send(_new_fd.get(), "Hello, world!", 13, 0) == -1) {
         std::cout << std::format("Error: {}\n", strerror(errno));
       }
-      close(_new_fd);
+      _new_fd.reset();
       _exit(0);
     }
-    close(_new_fd);
   }
 }
 

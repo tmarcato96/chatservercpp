@@ -4,6 +4,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <fd.hpp>
+
 #define PORT "3490"
 #define BACKLOG 10
 
@@ -22,6 +24,6 @@ private:
   void throwError() const;
 
   addrinfo _hints, *_servinfo;
-  int _sockfd, _new_fd;
+  FileDescriptor _sockfd;
   sockaddr_storage _client_addr;
 };
