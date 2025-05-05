@@ -4,24 +4,15 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <base.hpp>
 #include <fd.hpp>
 
-#define PORT "3490"
-#define BACKLOG 10
-
-void *get_in_addr(sockaddr *sa);
-class ChatServer {
+class ChatServer : public ServerBase {
 public:
-  ChatServer();
-  ~ChatServer();
+  using ServerBase::ServerBase;
 
-  void run();
+  void run() override;
 
 private:
-  void bindSocket();
-  void throwError() const;
-
-  addrinfo _hints, *_servinfo;
-  FileDescriptor _sockfd;
   sockaddr_storage _client_addr;
 };
