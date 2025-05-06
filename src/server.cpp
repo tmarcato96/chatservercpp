@@ -48,10 +48,9 @@ void ChatServer::run() {
 
   while (true) {
     socklen_t sin_size = sizeof(_client_addr);
-    FileDescriptor client_fd(
-        accept(_sockfd.get(), (sockaddr *)&_client_addr, &sin_size));
+    int client_fd = accept(_sockfd.get(), (sockaddr *)&_client_addr, &sin_size);
 
-    if (!client_fd.isValid()) {
+    if (client_fd == -1) {
       std::cout << std::format("Error: {}\n", strerror(errno));
       continue;
     }
@@ -61,18 +60,21 @@ void ChatServer::run() {
               ip, sizeof(ip));
     std::cout << std::format("Accepted connection from {}\n", ip);
 
-    // Handle client in a new thread
-    std::thread([fd = std::move(client_fd)]() mutable {
+    _threadPool.enqueue([client_fd]() {
+      FileDescriptor fd(client_fd);
       while (true) {
-        char buf[256];
+        char buf[DEFAULT_BUFLEN];
         memset(buf, 0, sizeof(buf));
         int nbytes = recv(fd.get(), buf, sizeof(buf), 0);
-        if (nbytes <= 0) {
+        if (nbytes == -1) {
           std::cerr << std::format("Error: {}\n", strerror(errno));
           break;
+        } else if (nbytes == 0) {
+          std::cout << "Client disconneted\n";
+          break;
         }
-        std::cout << buf << '\n';
+        std::cout << buf << std::endl;
       }
-    }).detach();
+    });
   }
 }

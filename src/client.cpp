@@ -44,9 +44,9 @@ void ClientServer::run() {
 
   while (true) {
     std::string s;
+    std::getline(std::cin, s);
 
-    std::cin >> s;
-    if (send(_sockfd, s.c_str(), strlen(s.c_str()), 0) == -1) {
+    if (send(_sockfd, s.c_str(), s.size(), 0) == -1) {
       std::cerr << std::format("Error: {}\n", strerror(errno));
     }
   }
