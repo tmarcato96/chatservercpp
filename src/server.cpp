@@ -7,6 +7,38 @@
 
 #include <server.hpp>
 
+ChatServer::ChatServer() : ServerBase() { connectSocket(); }
+
+void ChatServer::connectSocket() {
+
+  addrinfo *p;
+  for (p = _servinfo; p != nullptr; p = p->ai_next) {
+    _sockfd =
+        FileDescriptor(socket(p->ai_family, p->ai_socktype, p->ai_protocol));
+    if (!_sockfd.isValid()) {
+      std::cerr << std::format("Error: {}\n", strerror(errno));
+      continue;
+    }
+
+    int yes = 1;
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) ==
+        -1) {
+      throwError();
+    }
+
+    if ((bind(_sockfd, p->ai_addr, p->ai_addrlen)) == -1) {
+      _sockfd.reset();
+      std::cerr << std::format("Error: {}\n", strerror(errno));
+      continue;
+    }
+    break;
+  }
+
+  if (p == nullptr) {
+    throw std::runtime_error("Failed to bind.\n");
+  }
+}
+
 void ChatServer::run() {
   if (listen(_sockfd, BACKLOG)) {
     throwError();
@@ -31,9 +63,15 @@ void ChatServer::run() {
 
     // Handle client in a new thread
     std::thread([fd = std::move(client_fd)]() mutable {
-      const char *msg = "Hello, World!";
-      if (send(fd.get(), msg, strlen(msg), 0) == -1) {
-        std::cerr << std::format("Error: {}\n", strerror(errno));
+      while (true) {
+        char buf[256];
+        memset(buf, 0, sizeof(buf));
+        int nbytes = recv(fd.get(), buf, sizeof(buf), 0);
+        if (nbytes <= 0) {
+          std::cerr << std::format("Error: {}\n", strerror(errno));
+          break;
+        }
+        std::cout << buf << '\n';
       }
     }).detach();
   }

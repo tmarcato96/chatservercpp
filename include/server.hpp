@@ -9,9 +9,12 @@
 
 class ChatServer : public ServerBase {
 public:
-  using ServerBase::ServerBase;
+  ChatServer();
 
   void run() override;
+
+protected:
+  void connectSocket() override;
 
 private:
   sockaddr_storage _client_addr;

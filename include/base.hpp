@@ -18,9 +18,9 @@ public:
   virtual void run() = 0;
 
 protected:
-  void bindSocket();
+  virtual void connectSocket() = 0;
   void throwError() const;
 
-  addrinfo _hints, *_servinfo;
+  addrinfo _hints, *_servinfo, *_socketinfo;
   FileDescriptor _sockfd;
 };
