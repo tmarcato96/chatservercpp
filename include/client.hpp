@@ -2,12 +2,17 @@
 
 #include <base.hpp>
 
-class ClientServer : public ServerBase {
+class ChatClient : public ServerBase {
 public:
-  ClientServer();
+  ChatClient();
 
   void run() override;
 
 protected:
   void connectSocket() override;
+
+private:
+  void sendToServer(const std::string &s) const;
+  std::string getFromServer();
+  std::atomic<bool> _running{true};
 };

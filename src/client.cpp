@@ -7,9 +7,9 @@
 
 #include <client.hpp>
 
-ClientServer::ClientServer() : ServerBase() { connectSocket(); }
+ChatClient::ChatClient() : ServerBase() { connectSocket(); }
 
-void ClientServer::connectSocket() {
+void ChatClient::connectSocket() {
 
   addrinfo *p;
   for (p = _servinfo; p != nullptr; p = p->ai_next) {
@@ -39,15 +39,52 @@ void ClientServer::connectSocket() {
   }
 }
 
-void ClientServer::run() {
+void ChatClient::run() {
+  std::cout << "Enter your username to register:\n";
+  std::string username;
+  std::getline(std::cin, username);
+  sendToServer(username);
+  username.clear();
+  // Start receiver thread
+  std::thread receiver([this] {
+    while (_running) {
+      std::string msg = getFromServer();
+      if (!msg.empty()) {
+        std::cout << '\n' << msg << "\n " << std::flush;
+      }
+    }
+  });
+
+  // std::cout << "Select user:\n";
+  std::getline(std::cin, username);
+  sendToServer(username);
+
   std::cout << "Write something:\n";
 
   while (true) {
     std::string s;
     std::getline(std::cin, s);
-
-    if (send(_sockfd, s.c_str(), s.size(), 0) == -1) {
-      std::cerr << std::format("Error: {}\n", strerror(errno));
-    }
+    if (s == ":q")
+      break;
+    sendToServer(s);
   }
+
+  _running = false;
+  receiver.join();
+}
+
+void ChatClient::sendToServer(const std::string &s) const {
+  if (send(_sockfd, s.c_str(), s.size(), 0) == -1) {
+    std::cerr << std::format("Error: {}\n", strerror(errno)) << std::flush;
+  }
+}
+
+std::string ChatClient::getFromServer() {
+  char buf[DEFAULT_BUFLEN];
+  int nbytes = recv(_sockfd, buf, sizeof(buf), 0);
+  if (nbytes <= 0) {
+    _running = false;
+    return "[Disconnected from server]";
+  }
+  return std::string(buf, nbytes);
 }

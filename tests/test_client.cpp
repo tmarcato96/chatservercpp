@@ -1,6 +1,6 @@
 #include <client.hpp>
 
 int main() {
-  ClientServer client;
+  ChatClient client;
   client.run();
 }
